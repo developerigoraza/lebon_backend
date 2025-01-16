@@ -21,6 +21,13 @@ app.use(cors());
 app.use(morgan("dev"));
 app.use(helmet());
 
+//test
+app.get("/", (req, res) => {
+  res.send("Hello World");
+});
+
+
+app.use("/",)
 app.use("/api/menu", menuRoutes);
 app.use("/api/admin/", adminRoutes);
 // app.use("/api/customer/", customerRoutes);
