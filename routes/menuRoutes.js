@@ -7,9 +7,7 @@ const validateToken = require("../middleware/validateTokenHandler");
 
 const routes = express.Router();
 
-routes.post("/addtomenu", validateToken ,addItemToMenu);
+routes.post("/addtomenu", validateToken, addItemToMenu);
 routes.get("/", getMenuItems);
 
 module.exports = routes;
-
-//...

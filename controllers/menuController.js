@@ -88,9 +88,22 @@ const addItemToMenu = asyncHandler(async (req, res) => {
 });
 
 // Get menu items
-const getMenuItems = asyncHandler(async (req, res) => {
-  const menuItems = await Menu.find();
-  res.status(200).json(menuItems);
+const getMenuItems = async (req, res) => {
+  try {
+    const menuItems = await Menu.find();
+    res.status(200).json(menuItems);
+  } catch (err) {
+    res.status(500).json({ message: err });
+  }
+};
+
+//get menu item id
+
+const getItemById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const item = await Menu.findById(id);
+  if (!item) return res.status(404).json({ message: "Item not found" });
+  res.status(200).json(item);
 });
 
 // Edit an item in the menu
