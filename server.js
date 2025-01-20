@@ -22,7 +22,7 @@ app.use(morgan("dev"));
 app.use(helmet());
 
 //test
-app.get("/", (req, res) => {
+app.get("/test", (req, res) => {
   try {
     res.status(200).json({ message: "Server is running" });
   } catch (error) {
@@ -32,7 +32,6 @@ app.get("/", (req, res) => {
 });
 
 
-// app.use("/",)
 app.use("/api/menu", menuRoutes);
 app.use("/api/admin/", adminRoutes);
 // app.use("/api/customer/", customerRoutes);
