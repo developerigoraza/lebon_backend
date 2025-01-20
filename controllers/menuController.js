@@ -93,7 +93,7 @@ const getMenuItems = async (req, res) => {
     const menuItems = await Menu.find();
     res.status(200).json(menuItems);
   } catch (err) {
-    res.status(500).json({ message: err });
+    res.status(500).json({ message: err.message });
   }
 };
 
