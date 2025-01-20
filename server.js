@@ -23,7 +23,12 @@ app.use(helmet());
 
 //test
 app.get("/", (req, res) => {
-  res.send("Hello World");
+  try {
+    res.status(200).json({ message: "Server is running" });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+ 
 });
 
 
