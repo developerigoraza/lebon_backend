@@ -32,7 +32,7 @@ app.get("/", (req, res) => {
 });
 
 
-app.use("/",)
+// app.use("/",)
 app.use("/api/menu", menuRoutes);
 app.use("/api/admin/", adminRoutes);
 // app.use("/api/customer/", customerRoutes);
