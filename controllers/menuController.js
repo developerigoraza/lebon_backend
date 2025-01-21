@@ -33,11 +33,11 @@ const upload = multer({
       cb("Error: Images only!");
     }
   },
-});
+}).array("itemImages", 5);
 
 const addItemToMenu = asyncHandler(async (req, res) => {
   try {
-    upload.single("itemImage")(req, res, async (err) => {
+    upload(req, res, async (err) => {
       if (err) {
         return res.status(400).json({ message: err });
       }
@@ -47,34 +47,33 @@ const addItemToMenu = asyncHandler(async (req, res) => {
       switch (true) {
         case !itemName:
           return res.status(400).json({ message: "Item name is required" });
-
         case !description:
           return res.status(400).json({ message: "Description is required" });
-
         case !price:
           return res.status(400).json({ message: "Price is required" });
-
-        case !req.file:
-          return res.status(400).json({ message: "Image is required" });
-
+        case req.files.length === 0:
+          return res
+            .status(400)
+            .json({ message: "At least one image is required" });
         default:
           break;
       }
 
-      const existingItem = await Menu.findOne({ itemName: itemName });
+      const existingItem = await Menu.findOne({ itemName });
       if (existingItem) {
-        // Delete the uploaded image if the item already exists
-        fs.unlinkSync(req.file.path);
+        req.files.forEach((file) => fs.unlinkSync(file.path));
         return res
           .status(409)
           .json({ message: "Item already exists in the menu" });
       }
 
+      const imageFilenames = req.files.map((file) => file.filename);
+
       const newItem = await Menu.create({
         user_id: req.userId,
         itemName,
         description,
-        itemImage: req.file.filename,
+        itemImages: imageFilenames,
         price,
       });
 
@@ -109,7 +108,7 @@ const getItemById = asyncHandler(async (req, res) => {
 // Edit an item in the menu
 const editMenuItem = asyncHandler(async (req, res) => {
   try {
-    upload.single("itemImage")(req, res, async (err) => {
+    upload(req, res, async (err) => {
       if (err) return res.status(400).json({ message: err });
 
       const { id } = req.params;
@@ -118,12 +117,10 @@ const editMenuItem = asyncHandler(async (req, res) => {
       const item = await Menu.findById(id);
       if (!item) return res.status(404).json({ message: "Item not found" });
 
-      // Delete the old image if a new image is uploaded
-      if (req.file) {
-        if (item.itemImage) {
-          fs.unlinkSync(`uploads/${item.itemImage}`);
-        }
-        item.itemImage = req.file.filename;
+      // Delete old images if new ones are uploaded
+      if (req.files.length > 0) {
+        item.itemImages.forEach((image) => fs.unlinkSync(`uploads/${image}`));
+        item.itemImages = req.files.map((file) => file.filename);
       }
 
       // Update other fields
@@ -164,6 +161,7 @@ const deleteMenuItem = asyncHandler(async (req, res) => {
 module.exports = {
   addItemToMenu,
   getMenuItems,
+  getItemById,
   editMenuItem,
   deleteMenuItem,
   upload,
