@@ -8,6 +8,7 @@ const connectDb = require("./db");
 dotenv.config();
 const menuRoutes = require("./routes/menuRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const galleryRoutes = require("./routes/galleryRoutes");
 const customerRoutes = require("./routes/customerRoutes");
 const cartRoutes = require("./routes/cartRoutes");
 
@@ -35,6 +36,7 @@ app.get("/test", (req, res) => {
 
 app.use("/api/menu", menuRoutes);
 app.use("/api/admin/", adminRoutes);
+app.use("/api/gallery/", galleryRoutes);
 // app.use("/api/customer/", customerRoutes);
 // app.use("api/cart", cartRoutes);
 
