@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const multer = require("multer");
 const path = require("path");
-const Gallery = require("../model/gallaryModel");
+const Gallery = require("../model/galleryModel");
 const fs = require("fs");
 
 // Configure Multer Storage
