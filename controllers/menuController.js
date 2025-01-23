@@ -90,11 +90,18 @@ const addItemToMenu = asyncHandler(async (req, res) => {
 const getMenuItems = async (req, res) => {
   try {
     const menuItems = await Menu.find();
-    res.status(200).json(menuItems);
+    const itemsWithImageURLs = menuItems.map(item => ({
+      ...item.toObject(),
+      itemImages: item.itemImages.map(
+        image => `${req.protocol}://${req.get("host")}/uploads/${image}`
+      ),
+    }));
+    res.status(200).json(itemsWithImageURLs);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 //get menu item id
 

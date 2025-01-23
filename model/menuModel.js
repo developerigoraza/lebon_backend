@@ -6,9 +6,9 @@ const menuSchema = new mongoose.Schema({
   //   ref: "User",
   //   required: false,
   // },
-  itemName: { type: String, required: true, unique: true }, // Ensure unique names
+  itemName: { type: String, required: true, unique: true }, 
   description: { type: String, required: true },
-  itemImages: { type: [String], required: true, default: [] }, // Default to empty array
+  itemImages: { type: [String], required: true, default: [] }, 
   price: { type: Number, required: true },
 });
 
