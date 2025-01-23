@@ -32,29 +32,42 @@ const upload = multer({
 
 // Get Gallery Items
 const getGalleryItems = asyncHandler(async (req, res) => {
-  const galleryItems = await Gallery.find();
-  res.status(200).json(galleryItems);
+  try {
+    const galleryItems = await Gallery.find();
+    const itemsWithImageURLs = galleryItems.map(item => ({
+      ...item.toObject(),
+      image: `${req.protocol}://${req.get("host")}/uploads/${item.image}`
+    }));
+    res.status(200).json(itemsWithImageURLs);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 // Add Gallery Item
 const addGalleryItem = asyncHandler(async (req, res) => {
-  upload.single("image")(req, res, async (err) => {
+  upload.array("images", 10)(req, res, async (err) => { 
     if (err) {
       return res.status(400).json({ message: err });
     }
 
-    if (!req.file) {
-      return res.status(400).json({ message: "Image file is required" });
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: "Image files are required" });
     }
 
-    const existingItem = await Gallery.findOne({ image: req.file.filename });
-    if (existingItem) {
-      fs.unlinkSync(`uploads/${req.file.filename}`); // Delete the uploaded file
-      return res.status(409).json({ message: "Image already exists in the gallery" });
+    const galleryItems = [];
+    for (const file of req.files) {
+      const existingItem = await Gallery.findOne({ image: file.filename });
+      if (existingItem) {
+        fs.unlinkSync(`uploads/${file.filename}`); 
+        return res.status(409).json({ message: `Image ${file.filename} already exists in the gallery` });
+      }
+
+      const galleryItem = await Gallery.create({ image: file.filename });
+      galleryItems.push(galleryItem);
     }
 
-    const galleryItem = await Gallery.create({ image: req.file.filename });
-    res.status(201).json({ message: "Gallery item added successfully", galleryItem });
+    res.status(201).json({ message: "Gallery items added successfully", galleryItems });
   });
 });
 
@@ -70,7 +83,7 @@ const deleteGalleryItem = asyncHandler(async (req, res) => {
       fs.unlinkSync(`uploads/${item.image}`); // Delete the image file
     }
 
-    await item.remove();
+    await Gallery.findByIdAndDelete(id);
     res.status(200).json({ message: "Item deleted successfully" });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -78,32 +91,32 @@ const deleteGalleryItem = asyncHandler(async (req, res) => {
 });
 
 // Edit Gallery Item
-const editGalleryItem = asyncHandler(async (req, res) => {
-  upload.single("image")(req, res, async (err) => {
-    if (err) {
-      return res.status(400).json({ message: err });
-    }
+// const editGalleryItem = asyncHandler(async (req, res) => {
+//   upload.single("image")(req, res, async (err) => {
+//     if (err) {
+//       return res.status(400).json({ message: err });
+//     }
 
-    const { id } = req.params;
-    const item = await Gallery.findById(id);
-    if (!item) return res.status(404).json({ message: "Item not found" });
+//     const { id } = req.params;
+//     const item = await Gallery.findById(id);
+//     if (!item) return res.status(404).json({ message: "Item not found" });
 
-    if (req.file) {
-      // Delete old image file if a new one is uploaded
-      if (item.image) {
-        fs.unlinkSync(`uploads/${item.image}`);
-      }
-      item.image = req.file.filename;
-    }
+//     if (req.file) {
+//       // Delete old image file if a new one is uploaded
+//       if (item.image) {
+//         fs.unlinkSync(`uploads/${item.image}`);
+//       }
+//       item.image = req.file.filename;
+//     }
 
-    const updatedItem = await item.save();
-    res.status(200).json({ message: "Gallery item updated successfully", updatedItem });
-  });
-});
+//     const updatedItem = await item.save();
+//     res.status(200).json({ message: "Gallery item updated successfully", updatedItem });
+//   });
+// });
 
 module.exports = {
   getGalleryItems,
   addGalleryItem,
   deleteGalleryItem,
-  editGalleryItem,
+  // editGalleryItem,
 };

@@ -5,7 +5,7 @@ const {
   getGalleryItems,
   deleteGalleryItem,
   addGalleryItem,
-  editGalleryItem,
+  // editGalleryItem,
 } = require("../controllers/galleryController");
 const validateToken = require("../middleware/validateTokenHandler");
 
@@ -13,6 +13,6 @@ router.get("/", getGalleryItems);
 router.use(validateToken);
 router.post("/", addGalleryItem);
 router.delete("/:id", deleteGalleryItem);
-router.put("/edit/:id", editGalleryItem);
+// router.put("/edit/:id", editGalleryItem);
 
 module.exports = router;
