@@ -144,19 +144,29 @@ const deleteMenuItem = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const item = await Menu.findById(id);
 
-    if (!item) return res.status(404).json({ message: "Item not found" });
-
-    // Delete the associated image file
-    if (item.itemImage) {
-      fs.unlinkSync(`uploads/${item.itemImage}`);
+    if (!item) {
+      return res.status(404).json({ message: "Item not found" });
     }
 
+    // Delete associated images if they exist
+    if (item.itemImages && Array.isArray(item.itemImages)) {
+      item.itemImages.forEach((imagePath) => {
+        try {
+          fs.unlinkSync(`uploads/${imagePath}`);
+        } catch (err) {
+          console.error(`Failed to delete image: ${imagePath}`, err);
+        }
+      });
+    }
+
+    // Remove item from the database
     await item.remove();
     res.status(200).json({ message: "Item deleted successfully" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
+
 
 module.exports = {
   addItemToMenu,
