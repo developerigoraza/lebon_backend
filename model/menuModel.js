@@ -11,6 +11,11 @@ const menuSchema = new mongoose.Schema({
   itemImages: { type: [String], required: true, default: [] }, 
   category: { type: String, required: true },
   price: { type: Number, required: true },
+  isVeg: { type: Boolean, required: true, default: true },
+  isDeliverable: { type: Boolean, required: true, default: true },
+},
+{
+  timestamps: true,
 });
 
 const Menu = mongoose.model("Menu", menuSchema);

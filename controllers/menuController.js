@@ -42,7 +42,7 @@ const addItemToMenu = asyncHandler(async (req, res) => {
         return res.status(400).json({ message: err });
       }
 
-      const { itemName, description, price, category } = req.body;
+      const { itemName, description, price, category, isVeg, isDeliverable } = req.body;
 
       switch (true) {
         case !itemName:
@@ -76,6 +76,8 @@ const addItemToMenu = asyncHandler(async (req, res) => {
         itemImages: imageFilenames,
         category,
         price,
+        isVeg,
+        isDeliverable,
       });
 
       return res
