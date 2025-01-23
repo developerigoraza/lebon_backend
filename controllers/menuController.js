@@ -138,7 +138,7 @@ const editMenuItem = asyncHandler(async (req, res) => {
   }
 });
 
-// Delete an item from the menu
+
 const deleteMenuItem = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
@@ -148,7 +148,7 @@ const deleteMenuItem = asyncHandler(async (req, res) => {
       return res.status(404).json({ message: "Item not found" });
     }
 
-    // Delete associated images if they exist
+    
     if (item.itemImages && Array.isArray(item.itemImages)) {
       item.itemImages.forEach((imagePath) => {
         try {
@@ -159,8 +159,9 @@ const deleteMenuItem = asyncHandler(async (req, res) => {
       });
     }
 
-    // Remove item from the database
-    await item.remove();
+   
+    await Menu.findByIdAndDelete(id);  
+    
     res.status(200).json({ message: "Item deleted successfully" });
   } catch (err) {
     res.status(500).json({ message: err.message });
