@@ -107,10 +107,26 @@ const getMenuItems = async (req, res) => {
 
 const getItemById = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const item = await Menu.findById(id);
-  if (!item) return res.status(404).json({ message: "Item not found" });
-  res.status(200).json(item);
+  try {
+    const item = await Menu.findById(id);
+
+    if (!item) {
+      return res.status(404).json({ message: "Item not found" });
+    }
+
+    const itemWithImageURLs = {
+      ...item.toObject(),
+      itemImages: item.itemImages.map(
+        (image) => `${req.protocol}://${req.get("host")}/uploads/${image}`
+      ),
+    };
+
+    res.status(200).json(itemWithImageURLs);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
+
 
 // Edit an item in the menu
 const editMenuItem = asyncHandler(async (req, res) => {
