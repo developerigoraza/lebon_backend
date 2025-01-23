@@ -12,9 +12,9 @@ const routes = express.Router();
 
 
 routes.post("/addtomenu", validateToken, addItemToMenu);
-routes.get("/menu/:id", getItemById); 
+routes.get("/:id", getItemById); 
 routes.get("/", getMenuItems);
-routes.delete("/menu/:id", validateToken, deleteMenuItem);
-routes.put("/menu/:id", validateToken, editMenuItem); 
+routes.delete("/:id", validateToken, deleteMenuItem);
+routes.put("/:id", validateToken, editMenuItem); 
 
 module.exports = routes;

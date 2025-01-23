@@ -9,8 +9,8 @@ dotenv.config();
 const menuRoutes = require("./routes/menuRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const galleryRoutes = require("./routes/galleryRoutes");
-const customerRoutes = require("./routes/customerRoutes");
-const cartRoutes = require("./routes/cartRoutes");
+// const customerRoutes = require("./routes/customerRoutes");
+// const cartRoutes = require("./routes/cartRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,10 +30,7 @@ app.get("/test", (req, res) => {
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
- 
 });
-
-
 
 app.use("/api/menu/", menuRoutes);
 app.use("/api/admin/", adminRoutes);
