@@ -9,6 +9,7 @@ dotenv.config();
 const menuRoutes = require("./routes/menuRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const galleryRoutes = require("./routes/galleryRoutes");
+const path = require("path");
 // const customerRoutes = require("./routes/customerRoutes");
 // const cartRoutes = require("./routes/cartRoutes");
 
@@ -16,7 +17,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 connectDb();
 
-app.use("/uploads", express.static("uploads"));
+// app.use("/uploads", express.static("uploads"));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
