@@ -40,10 +40,10 @@ app.get("/test", (req, res) => {
   }
 });
 
-app.use("/api/new-arrivals", newArrivalsRoutes);
-app.use("/api/pastries", pastriesRoutes);
-app.use("/api/cakes", cakesRoutes);
-app.use("/api/todays-special", todaysSpecialRoutes);
+app.use("/api/new-arrivals/", newArrivalsRoutes);
+app.use("/api/pastries/", pastriesRoutes);
+app.use("/api/cakes/", cakesRoutes);
+app.use("/api/todays-special/", todaysSpecialRoutes);
 
 app.use("/api/menu/", menuRoutes);
 app.use("/api/admin/", adminRoutes);
