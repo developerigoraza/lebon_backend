@@ -5,7 +5,7 @@ const {
   getCakeItemById,
   editCakeItem,
   deleteCakeItem,
-} = require("../controllers/cakesController");
+} = require("../controllers/CakesController");
 const validateToken = require("../middleware/validateTokenHandler");
 
 const routes = express.Router();

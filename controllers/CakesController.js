@@ -36,58 +36,58 @@ const upload = multer({
 }).array("itemImages", 5);
 
 // Add a new item to the Cakes collection
-const addItemToCakes = asyncHandler(async (req, res) => {
-  try {
-    upload(req, res, async (err) => {
-      if (err) {
-        return res.status(400).json({ message: err });
-      }
+  const addItemToCakes = asyncHandler(async (req, res) => {
+    try {
+      upload(req, res, async (err) => {
+        if (err) {
+          return res.status(400).json({ message: err });
+        }
 
-      const { itemName, description, price, category, isVeg, isDeliverable } = req.body;
+        const { itemName, description, price, category, isVeg, isDeliverable } = req.body;
 
-      switch (true) {
-        case !itemName:
-          return res.status(400).json({ message: "Item name is required" });
-        case !description:
-          return res.status(400).json({ message: "Description is required" });
-        case !price:
-          return res.status(400).json({ message: "Price is required" });
-        case req.files.length === 0:
-          return res.status(400).json({ message: "At least one image is required" });
-        default:
-          break;
-      }
+        switch (true) {
+          case !itemName:
+            return res.status(400).json({ message: "Item name is required" });
+          case !description:
+            return res.status(400).json({ message: "Description is required" });
+          case !price:
+            return res.status(400).json({ message: "Price is required" });
+          case req.files.length === 0:
+            return res.status(400).json({ message: "At least one image is required" });
+          default:
+            break;
+        }
 
-      const existingItem = await Cakes.findOne({ "items.title": itemName });
-      if (existingItem) {
-        req.files.forEach((file) => fs.unlinkSync(file.path));
-        return res.status(409).json({ message: "Item already exists in Cakes" });
-      }
+        const existingItem = await Cakes.findOne({ "items.title": itemName });
+        if (existingItem) {
+          req.files.forEach((file) => fs.unlinkSync(file.path));
+          return res.status(409).json({ message: "Item already exists in Cakes" });
+        }
 
-      const imageFilenames = req.files.map((file) => file.filename);
+        const imageFilenames = req.files.map((file) => file.filename);
 
-      const newItem = await Cakes.create({
-        category,
-        items: [
-          {
-            title: itemName,
-            description,
-            price,
-            itemImages: imageFilenames,
-            isVeg,
-            isDeliverable,
-          },
-        ],
+        const newItem = await Cakes.create({
+          category,
+          items: [
+            {
+              title: itemName,
+              description,
+              price,
+              itemImages: imageFilenames,
+              isVeg,
+              isDeliverable,
+            },
+          ],
+        });
+
+        return res
+          .status(201)
+          .json({ message: "Item added to Cakes successfully", newItem });
       });
-
-      return res
-        .status(201)
-        .json({ message: "Item added to Cakes successfully", newItem });
-    });
-  } catch (err) {
-    return res.status(500).json({ message: err.message });
-  }
-});
+    } catch (err) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
 
 // Get all items from the Cakes collection
 const getCakesItems = async (req, res) => {
