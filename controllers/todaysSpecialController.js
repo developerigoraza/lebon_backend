@@ -73,7 +73,7 @@ const addItemToSpecial = asyncHandler(async (req, res) => {
         category,
         items: [
           {
-            title: itemName,
+            itemName,
             description,
             price,
             itemImages: imageFilenames,

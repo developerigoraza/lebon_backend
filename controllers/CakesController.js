@@ -70,7 +70,7 @@ const upload = multer({
           category,
           items: [
             {
-              title: itemName,
+              itemName,
               description,
               price,
               itemImages: imageFilenames,
