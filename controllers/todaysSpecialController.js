@@ -1,9 +1,10 @@
 const asyncHandler = require("express-async-handler");
+const TodaysSpecial = require("../model/todaysSpecialModel"); // Import the TodaysSpecial model
 const multer = require("multer");
 const path = require("path");
-const TodaysSpecial = require("../model/todaysSpecialModel"); 
 const fs = require("fs");
 
+// Setup multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads/");
@@ -34,42 +35,61 @@ const upload = multer({
   },
 }).array("itemImages", 5);
 
+// Helper function to delete images
+const deleteImages = (images) => {
+  images.forEach((imagePath) => {
+    try {
+      fs.unlinkSync(`uploads/${imagePath}`);
+    } catch (err) {
+      console.error(`Failed to delete image: ${imagePath}`, err);
+    }
+  });
+};
 
-const addItemToSpecial = asyncHandler(async (req, res) => {
-  try {
-    upload(req, res, async (err) => {
-      if (err) {
-        return res.status(400).json({ message: err });
-      }
+// Add a new item to the TodaysSpecial collection
+const addItemToTodaysSpecial = asyncHandler(async (req, res) => {
+  upload(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ message: err });
+    }
 
-      const { itemName, description, price, category, isVeg, isDeliverable } = req.body;
+    const { itemName, description, price, category, isVeg, isDeliverable } =
+      req.body;
 
-      switch (true) {
-        case !itemName:
-          return res.status(400).json({ message: "Item name is required" });
-        case !description:
-          return res.status(400).json({ message: "Description is required" });
-        case !price:
-          return res.status(400).json({ message: "Price is required" });
-        case req.files.length === 0:
-          return res
-            .status(400)
-            .json({ message: "At least one image is required" });
-        default:
-          break;
-      }
+    if (!itemName || !description || !price || req.files.length === 0) {
+      return res.status(400).json({
+        message: "All fields are required, including at least one image.",
+      });
+    }
 
-      const existingItem = await TodaysSpecial.findOne({ "items.title": itemName });
-      if (existingItem) {
-        req.files.forEach((file) => fs.unlinkSync(file.path));
+    const imageFilenames = req.files.map((file) => file.filename);
+
+    const categoryExists = await TodaysSpecial.findOne({ category });
+    if (categoryExists) {
+      const itemExists = categoryExists.items.some(
+        (item) => item.itemName === itemName
+      );
+      if (itemExists) {
+        deleteImages(imageFilenames);
         return res
           .status(409)
-          .json({ message: "Item already exists in the special menu" });
+          .json({ message: "Item already exists in TodaysSpecial." });
       }
 
-      const imageFilenames = req.files.map((file) => file.filename);
-
-      const newItem = await TodaysSpecial.create({
+      categoryExists.items.push({
+        itemName,
+        description,
+        price,
+        itemImages: imageFilenames,
+        isVeg,
+        isDeliverable,
+      });
+      await categoryExists.save();
+      return res
+        .status(201)
+        .json({ message: "Item added to TodaysSpecial successfully." });
+    } else {
+      await TodaysSpecial.create({
         category,
         items: [
           {
@@ -82,25 +102,22 @@ const addItemToSpecial = asyncHandler(async (req, res) => {
           },
         ],
       });
-
       return res
         .status(201)
-        .json({ message: "Item added to Today's Special successfully", newItem });
-    });
-  } catch (err) {
-    return res.status(500).json({ message: err.message });
-  }
+        .json({ message: "Category and item created successfully." });
+    }
+  });
 });
 
-
-const getSpecialItems = async (req, res) => {
+// Get all items from the TodaysSpecial collection
+const getTodaysSpecialItems = asyncHandler(async (req, res) => {
   try {
     const specials = await TodaysSpecial.find();
-    const itemsWithImageURLs = specials.flatMap(special =>
-      special.items.map(item => ({
-        ...item,
+    const itemsWithImageURLs = specials.flatMap((special) =>
+      special.items.map((item) => ({
+        ...item.toObject(),
         itemImages: item.itemImages.map(
-          image => `${req.protocol}://${req.get("host")}/uploads/${image}`
+          (image) => `${req.protocol}://${req.get("host")}/uploads/${image}`
         ),
       }))
     );
@@ -108,19 +125,18 @@ const getSpecialItems = async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
-};
+});
 
-
-const getSpecialItemById = asyncHandler(async (req, res) => {
+// Get a specific item by ID
+const getTodaysSpecialItemById = asyncHandler(async (req, res) => {
   const { id } = req.params;
   try {
     const special = await TodaysSpecial.findOne({ "items._id": id });
     if (!special) {
-      return res.status(404).json({ message: "Item not found" });
+      return res.status(404).json({ message: "Item not found." });
     }
 
-    const item = special.items.id(id); 
-
+    const item = special.items.id(id);
     const itemWithImageURLs = {
       ...item.toObject(),
       itemImages: item.itemImages.map(
@@ -134,78 +150,61 @@ const getSpecialItemById = asyncHandler(async (req, res) => {
   }
 });
 
+// Edit a specific item in the TodaysSpecial collection
+const editTodaysSpecialItem = asyncHandler(async (req, res) => {
+  upload(req, res, async (err) => {
+    if (err) return res.status(400).json({ message: err });
 
-const editSpecialItem = asyncHandler(async (req, res) => {
-  try {
-    upload(req, res, async (err) => {
-      if (err) return res.status(400).json({ message: err });
+    const { id } = req.params;
+    const { itemName, description, price, isVeg, isDeliverable } = req.body;
 
-      const { id } = req.params;
-      const { itemName, description, price, isVeg, isDeliverable } = req.body;
+    const special = await TodaysSpecial.findOne({ "items._id": id });
+    if (!special) return res.status(404).json({ message: "Item not found." });
 
-      const special = await TodaysSpecial.findOne({ "items._id": id });
-      if (!special) return res.status(404).json({ message: "Item not found" });
+    const item = special.items.id(id);
 
-      const item = special.items.id(id);
+    if (req.files.length > 0) {
+      deleteImages(item.itemImages);
+      item.itemImages = req.files.map((file) => file.filename);
+    }
 
-      
-      if (req.files.length > 0) {
-        item.itemImages.forEach((image) => fs.unlinkSync(`uploads/${image}`));
-        item.itemImages = req.files.map((file) => file.filename);
-      }
+    item.itemName = itemName || item.itemName;
+    item.description = description || item.description;
+    item.price = price || item.price;
+    item.isVeg = isVeg !== undefined ? isVeg : item.isVeg;
+    item.isDeliverable =
+      isDeliverable !== undefined ? isDeliverable : item.isDeliverable;
 
-     
-      item.title = itemName || item.title;
-      item.description = description || item.description;
-      item.price = price || item.price;
-      item.isVeg = isVeg !== undefined ? isVeg : item.isVeg;
-      item.isDeliverable = isDeliverable !== undefined ? isDeliverable : item.isDeliverable;
-
-      const updatedSpecial = await special.save();
-      res
-        .status(200)
-        .json({ message: "Item updated in Today's Special successfully", updatedSpecial });
-    });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+    await special.save();
+    res.status(200).json({ message: "Item updated successfully." });
+  });
 });
 
-// Delete an item from Today's Special menu
-const deleteSpecialItem = asyncHandler(async (req, res) => {
+// Delete a specific item
+const deleteTodaysSpecialItem = asyncHandler(async (req, res) => {
+  const { id } = req.params;
   try {
-    const { id } = req.params;
     const special = await TodaysSpecial.findOne({ "items._id": id });
-
     if (!special) {
-      return res.status(404).json({ message: "Item not found" });
+      return res.status(404).json({ message: "Item not found." });
     }
 
     const item = special.items.id(id);
-    if (item.itemImages && Array.isArray(item.itemImages)) {
-      item.itemImages.forEach((imagePath) => {
-        try {
-          fs.unlinkSync(`uploads/${imagePath}`);
-        } catch (err) {
-          console.error(`Failed to delete image: ${imagePath}`, err);
-        }
-      });
-    }
+    deleteImages(item.itemImages);
 
     special.items.pull(id);
     await special.save();
 
-    res.status(200).json({ message: "Item deleted from Today's Special successfully" });
+    res.status(200).json({ message: "Item deleted successfully." });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
 module.exports = {
-  addItemToSpecial,
-  getSpecialItems,
-  getSpecialItemById,
-  editSpecialItem,
-  deleteSpecialItem,
-  upload,
+  addItemToTodaysSpecial,
+  getTodaysSpecialItems,
+  getTodaysSpecialItemById,
+  editTodaysSpecialItem,
+  deleteTodaysSpecialItem,
 };

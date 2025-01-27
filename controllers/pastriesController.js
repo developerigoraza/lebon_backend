@@ -35,38 +35,61 @@ const upload = multer({
   },
 }).array("itemImages", 5);
 
+// Helper function to delete images
+const deleteImages = (images) => {
+  images.forEach((imagePath) => {
+    try {
+      fs.unlinkSync(`uploads/${imagePath}`);
+    } catch (err) {
+      console.error(`Failed to delete image: ${imagePath}`, err);
+    }
+  });
+};
+
 // Add a new item to the Pastries collection
 const addItemToPastries = asyncHandler(async (req, res) => {
-  try {
-    upload(req, res, async (err) => {
-      if (err) {
-        return res.status(400).json({ message: err });
+  upload(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ message: err });
+    }
+
+    const { itemName, description, price, category, isVeg, isDeliverable } =
+      req.body;
+
+    if (!itemName || !description || !price || req.files.length === 0) {
+      return res.status(400).json({
+        message: "All fields are required, including at least one image.",
+      });
+    }
+
+    const imageFilenames = req.files.map((file) => file.filename);
+
+    const categoryExists = await Pastries.findOne({ category });
+    if (categoryExists) {
+      const itemExists = categoryExists.items.some(
+        (item) => item.itemName === itemName
+      );
+      if (itemExists) {
+        deleteImages(imageFilenames);
+        return res
+          .status(409)
+          .json({ message: "Item already exists in Pastries." });
       }
 
-      const { itemName, description, price, category, isVeg, isDeliverable } = req.body;
-
-      switch (true) {
-        case !itemName:
-          return res.status(400).json({ message: "Item name is required" });
-        case !description:
-          return res.status(400).json({ message: "Description is required" });
-        case !price:
-          return res.status(400).json({ message: "Price is required" });
-        case req.files.length === 0:
-          return res.status(400).json({ message: "At least one image is required" });
-        default:
-          break;
-      }
-
-      const existingItem = await Pastries.findOne({ "items.title": itemName });
-      if (existingItem) {
-        req.files.forEach((file) => fs.unlinkSync(file.path));
-        return res.status(409).json({ message: "Item already exists in Pastries" });
-      }
-
-      const imageFilenames = req.files.map((file) => file.filename);
-
-      const newItem = await Pastries.create({
+      categoryExists.items.push({
+        itemName,
+        description,
+        price,
+        itemImages: imageFilenames,
+        isVeg,
+        isDeliverable,
+      });
+      await categoryExists.save();
+      return res
+        .status(201)
+        .json({ message: "Item added to Pastries successfully." });
+    } else {
+      await Pastries.create({
         category,
         items: [
           {
@@ -79,25 +102,22 @@ const addItemToPastries = asyncHandler(async (req, res) => {
           },
         ],
       });
-
       return res
         .status(201)
-        .json({ message: "Item added to Pastries successfully", newItem });
-    });
-  } catch (err) {
-    return res.status(500).json({ message: err.message });
-  }
+        .json({ message: "Category and item created successfully." });
+    }
+  });
 });
 
 // Get all items from the Pastries collection
-const getPastriesItems = async (req, res) => {
+const getPastriesItems = asyncHandler(async (req, res) => {
   try {
     const pastries = await Pastries.find();
-    const itemsWithImageURLs = pastries.flatMap(pastry =>
-      pastry.items.map(item => ({
-        ...item,
+    const itemsWithImageURLs = pastries.flatMap((pastry) =>
+      pastry.items.map((item) => ({
+        ...item.toObject(),
         itemImages: item.itemImages.map(
-          image => `${req.protocol}://${req.get("host")}/uploads/${image}`
+          (image) => `${req.protocol}://${req.get("host")}/uploads/${image}`
         ),
       }))
     );
@@ -105,19 +125,18 @@ const getPastriesItems = async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
-};
+});
 
-// Get a specific item from the Pastries collection by its ID
+// Get a specific item by ID
 const getPastryItemById = asyncHandler(async (req, res) => {
   const { id } = req.params;
   try {
     const pastry = await Pastries.findOne({ "items._id": id });
     if (!pastry) {
-      return res.status(404).json({ message: "Item not found" });
+      return res.status(404).json({ message: "Item not found." });
     }
 
-    const item = pastry.items.id(id); // Find the specific item by its ID
-
+    const item = pastry.items.id(id);
     const itemWithImageURLs = {
       ...item.toObject(),
       itemImages: item.itemImages.map(
@@ -133,67 +152,50 @@ const getPastryItemById = asyncHandler(async (req, res) => {
 
 // Edit a specific item in the Pastries collection
 const editPastryItem = asyncHandler(async (req, res) => {
-  try {
-    upload(req, res, async (err) => {
-      if (err) return res.status(400).json({ message: err });
+  upload(req, res, async (err) => {
+    if (err) return res.status(400).json({ message: err });
 
-      const { id } = req.params;
-      const { itemName, description, price, isVeg, isDeliverable } = req.body;
+    const { id } = req.params;
+    const { itemName, description, price, isVeg, isDeliverable } = req.body;
 
-      const pastry = await Pastries.findOne({ "items._id": id });
-      if (!pastry) return res.status(404).json({ message: "Item not found" });
+    const pastry = await Pastries.findOne({ "items._id": id });
+    if (!pastry) return res.status(404).json({ message: "Item not found." });
 
-      const item = pastry.items.id(id);
+    const item = pastry.items.id(id);
 
-      // Delete old images if new ones are uploaded
-      if (req.files.length > 0) {
-        item.itemImages.forEach((image) => fs.unlinkSync(`uploads/${image}`));
-        item.itemImages = req.files.map((file) => file.filename);
-      }
+    if (req.files.length > 0) {
+      deleteImages(item.itemImages);
+      item.itemImages = req.files.map((file) => file.filename);
+    }
 
-      // Update other fields
-      item.title = itemName || item.title;
-      item.description = description || item.description;
-      item.price = price || item.price;
-      item.isVeg = isVeg !== undefined ? isVeg : item.isVeg;
-      item.isDeliverable = isDeliverable !== undefined ? isDeliverable : item.isDeliverable;
+    item.itemName = itemName || item.itemName;
+    item.description = description || item.description;
+    item.price = price || item.price;
+    item.isVeg = isVeg !== undefined ? isVeg : item.isVeg;
+    item.isDeliverable =
+      isDeliverable !== undefined ? isDeliverable : item.isDeliverable;
 
-      const updatedPastry = await pastry.save();
-      res
-        .status(200)
-        .json({ message: "Item updated in Pastries successfully", updatedPastry });
-    });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+    await pastry.save();
+    res.status(200).json({ message: "Item updated successfully." });
+  });
 });
 
-// Delete a specific item from the Pastries collection
+// Delete a specific item
 const deletePastryItem = asyncHandler(async (req, res) => {
+  const { id } = req.params;
   try {
-    const { id } = req.params;
     const pastry = await Pastries.findOne({ "items._id": id });
-
     if (!pastry) {
-      return res.status(404).json({ message: "Item not found" });
+      return res.status(404).json({ message: "Item not found." });
     }
 
     const item = pastry.items.id(id);
-    if (item.itemImages && Array.isArray(item.itemImages)) {
-      item.itemImages.forEach((imagePath) => {
-        try {
-          fs.unlinkSync(`uploads/${imagePath}`);
-        } catch (err) {
-          console.error(`Failed to delete image: ${imagePath}`, err);
-        }
-      });
-    }
+    deleteImages(item.itemImages);
 
-    // Remove the item from the Pastries collection
     pastry.items.pull(id);
     await pastry.save();
 
-    res.status(200).json({ message: "Item deleted from Pastries successfully" });
+    res.status(200).json({ message: "Item deleted successfully." });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -205,5 +207,4 @@ module.exports = {
   getPastryItemById,
   editPastryItem,
   deletePastryItem,
-  upload,
 };

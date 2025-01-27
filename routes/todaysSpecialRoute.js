@@ -1,18 +1,18 @@
 const express = require("express");
 const {
-  addItemToSpecial,
-  getSpecialItems,
-  getSpecialItemById,
-  editSpecialItem,
-  deleteSpecialItem,
+  addItemToTodaysSpecial,
+  getTodaysSpecialItems,
+  getTodaysSpecialItemById,
+  editTodaysSpecialItem,
+  deleteTodaysSpecialItem,
 } = require("../controllers/todaysSpecialController");
 const validateToken = require("../middleware/validateTokenHandler");
 
 const routes = express.Router();
-routes.post("/add", validateToken, addItemToSpecial);
-routes.get("/", getSpecialItems);
-routes.get("/:id", getSpecialItemById);
-routes.delete("/:id", validateToken, deleteSpecialItem);
-routes.put("/:id", validateToken, editSpecialItem);
+routes.post("/add", validateToken, addItemToTodaysSpecial);
+routes.get("/", getTodaysSpecialItems); 
+routes.get("/:id", getTodaysSpecialItemById);
+routes.delete("/:id", validateToken, deleteTodaysSpecialItem );
+routes.put("/:id", validateToken, editTodaysSpecialItem );
 
 module.exports = routes;

@@ -1,5 +1,5 @@
 const asyncHandler = require("express-async-handler");
-const NewArrivals = require("../model/newArrivalsModel"); 
+const NewArrivals = require("../model/newArrivalsModel"); // Import the NewArrivals model
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
@@ -35,38 +35,61 @@ const upload = multer({
   },
 }).array("itemImages", 5);
 
-// Add a new item to the New Arrivals collection
+// Helper function to delete images
+const deleteImages = (images) => {
+  images.forEach((imagePath) => {
+    try {
+      fs.unlinkSync(`uploads/${imagePath}`);
+    } catch (err) {
+      console.error(`Failed to delete image: ${imagePath}`, err);
+    }
+  });
+};
+
+// Add a new item to the NewArrivals collection
 const addItemToNewArrivals = asyncHandler(async (req, res) => {
-  try {
-    upload(req, res, async (err) => {
-      if (err) {
-        return res.status(400).json({ message: err });
+  upload(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ message: err });
+    }
+
+    const { itemName, description, price, category, isVeg, isDeliverable } =
+      req.body;
+
+    if (!itemName || !description || !price || req.files.length === 0) {
+      return res.status(400).json({
+        message: "All fields are required, including at least one image.",
+      });
+    }
+
+    const imageFilenames = req.files.map((file) => file.filename);
+
+    const categoryExists = await NewArrivals.findOne({ category });
+    if (categoryExists) {
+      const itemExists = categoryExists.items.some(
+        (item) => item.itemName === itemName
+      );
+      if (itemExists) {
+        deleteImages(imageFilenames);
+        return res
+          .status(409)
+          .json({ message: "Item already exists in NewArrivals." });
       }
 
-      const { itemName, description, price, category, isVeg, isDeliverable } = req.body;
-
-      switch (true) {
-        case !itemName:
-          return res.status(400).json({ message: "Item name is required" });
-        case !description:
-          return res.status(400).json({ message: "Description is required" });
-        case !price:
-          return res.status(400).json({ message: "Price is required" });
-        case req.files.length === 0:
-          return res.status(400).json({ message: "At least one image is required" });
-        default:
-          break;
-      }
-
-      const existingItem = await NewArrivals.findOne({ "items.title": itemName });
-      if (existingItem) {
-        req.files.forEach((file) => fs.unlinkSync(file.path));
-        return res.status(409).json({ message: "Item already exists in the New Arrivals" });
-      }
-
-      const imageFilenames = req.files.map((file) => file.filename);
-
-      const newItem = await NewArrivals.create({
+      categoryExists.items.push({
+        itemName,
+        description,
+        price,
+        itemImages: imageFilenames,
+        isVeg,
+        isDeliverable,
+      });
+      await categoryExists.save();
+      return res
+        .status(201)
+        .json({ message: "Item added to NewArrivals successfully." });
+    } else {
+      await NewArrivals.create({
         category,
         items: [
           {
@@ -79,25 +102,22 @@ const addItemToNewArrivals = asyncHandler(async (req, res) => {
           },
         ],
       });
-
       return res
         .status(201)
-        .json({ message: "Item added to New Arrivals successfully", newItem });
-    });
-  } catch (err) {
-    return res.status(500).json({ message: err.message });
-  }
+        .json({ message: "Category and item created successfully." });
+    }
+  });
 });
 
-// Get all items from the New Arrivals collection
-const getNewArrivalsItems = async (req, res) => {
+// Get all items from the NewArrivals collection
+const getNewArrivalsItems = asyncHandler(async (req, res) => {
   try {
-    const arrivals = await NewArrivals.find();
-    const itemsWithImageURLs = arrivals.flatMap(arrival =>
-      arrival.items.map(item => ({
-        ...item,
+    const newArrivals = await NewArrivals.find();
+    const itemsWithImageURLs = newArrivals.flatMap((arrival) =>
+      arrival.items.map((item) => ({
+        ...item.toObject(),
         itemImages: item.itemImages.map(
-          image => `${req.protocol}://${req.get("host")}/uploads/${image}`
+          (image) => `${req.protocol}://${req.get("host")}/uploads/${image}`
         ),
       }))
     );
@@ -105,19 +125,18 @@ const getNewArrivalsItems = async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
-};
+});
 
-// Get a specific item from the New Arrivals collection by its ID
+// Get a specific item by ID
 const getNewArrivalItemById = asyncHandler(async (req, res) => {
   const { id } = req.params;
   try {
     const arrival = await NewArrivals.findOne({ "items._id": id });
     if (!arrival) {
-      return res.status(404).json({ message: "Item not found" });
+      return res.status(404).json({ message: "Item not found." });
     }
 
-    const item = arrival.items.id(id); // Find the specific item by its ID
-
+    const item = arrival.items.id(id);
     const itemWithImageURLs = {
       ...item.toObject(),
       itemImages: item.itemImages.map(
@@ -131,65 +150,52 @@ const getNewArrivalItemById = asyncHandler(async (req, res) => {
   }
 });
 
+// Edit a specific item in the NewArrivals collection
 const editNewArrivalItem = asyncHandler(async (req, res) => {
-  try {
-    upload(req, res, async (err) => {
-      if (err) return res.status(400).json({ message: err });
+  upload(req, res, async (err) => {
+    if (err) return res.status(400).json({ message: err });
 
-      const { id } = req.params;
-      const { itemName, description, price, isVeg, isDeliverable } = req.body;
+    const { id } = req.params;
+    const { itemName, description, price, isVeg, isDeliverable } = req.body;
 
-      const arrival = await NewArrivals.findOne({ "items._id": id });
-      if (!arrival) return res.status(404).json({ message: "Item not found" });
+    const arrival = await NewArrivals.findOne({ "items._id": id });
+    if (!arrival) return res.status(404).json({ message: "Item not found." });
 
-      const item = arrival.items.id(id);
+    const item = arrival.items.id(id);
 
-      if (req.files.length > 0) {
-        item.itemImages.forEach((image) => fs.unlinkSync(`uploads/${image}`));
-        item.itemImages = req.files.map((file) => file.filename);
-      }
+    if (req.files.length > 0) {
+      deleteImages(item.itemImages);
+      item.itemImages = req.files.map((file) => file.filename);
+    }
 
-      // Update other fields
-      item.title = itemName || item.title;
-      item.description = description || item.description;
-      item.price = price || item.price;
-      item.isVeg = isVeg !== undefined ? isVeg : item.isVeg;
-      item.isDeliverable = isDeliverable !== undefined ? isDeliverable : item.isDeliverable;
+    item.itemName = itemName || item.itemName;
+    item.description = description || item.description;
+    item.price = price || item.price;
+    item.isVeg = isVeg !== undefined ? isVeg : item.isVeg;
+    item.isDeliverable =
+      isDeliverable !== undefined ? isDeliverable : item.isDeliverable;
 
-      const updatedArrival = await arrival.save();
-      res
-        .status(200)
-        .json({ message: "Item updated in New Arrivals successfully", updatedArrival });
-    });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+    await arrival.save();
+    res.status(200).json({ message: "Item updated successfully." });
+  });
 });
 
+// Delete a specific item
 const deleteNewArrivalItem = asyncHandler(async (req, res) => {
+  const { id } = req.params;
   try {
-    const { id } = req.params;
     const arrival = await NewArrivals.findOne({ "items._id": id });
-
     if (!arrival) {
-      return res.status(404).json({ message: "Item not found" });
+      return res.status(404).json({ message: "Item not found." });
     }
 
     const item = arrival.items.id(id);
-    if (item.itemImages && Array.isArray(item.itemImages)) {
-      item.itemImages.forEach((imagePath) => {
-        try {
-          fs.unlinkSync(`uploads/${imagePath}`);
-        } catch (err) {
-          console.error(`Failed to delete image: ${imagePath}`, err);
-        }
-      });
-    }
+    deleteImages(item.itemImages);
 
     arrival.items.pull(id);
     await arrival.save();
 
-    res.status(200).json({ message: "Item deleted from New Arrivals successfully" });
+    res.status(200).json({ message: "Item deleted successfully." });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -201,5 +207,4 @@ module.exports = {
   getNewArrivalItemById,
   editNewArrivalItem,
   deleteNewArrivalItem,
-  upload,
 };
