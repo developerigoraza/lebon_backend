@@ -5,22 +5,19 @@ const morgan = require("morgan");
 const helmet = require("helmet");
 const mongoose = require("mongoose");
 const connectDb = require("./db");
-dotenv.config();
-const menuRoutes = require("./routes/menuRoutes");
+
 const adminRoutes = require("./routes/adminRoutes");
 const galleryRoutes = require("./routes/galleryRoutes");
-const newArrivalsRoutes = require("./routes/newArrivalsRoute");
-const pastriesRoutes = require("./routes/pastriesRoutes");
-const cakesRoutes = require("./routes/cakesRoutes");
-const todaysSpecialRoutes = require("./routes/todaysSpecialRoute");
-
-const path = require("path");
-// const customerRoutes = require("./routes/customerRoutes");
-// const cartRoutes = require("./routes/cartRoutes");
+const productRoutes = require("./routes/productRoutes");
+const categoryRoutes = require("./routes/categoryRoutes");
+const subCategoryRoutes = require("./routes/subCategoryRoutes");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+dotenv.config();
+const path = require("path");
 connectDb();
+
+const PORT = process.env.PORT || 3000;
 
 // app.use("/uploads", express.static("uploads"));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -40,12 +37,9 @@ app.get("/test", (req, res) => {
   }
 });
 
-app.use("/api/new-arrivals/", newArrivalsRoutes);
-app.use("/api/pastries/", pastriesRoutes);
-app.use("/api/cakes/", cakesRoutes);
-app.use("/api/todays-special/", todaysSpecialRoutes);
-
-app.use("/api/menu/", menuRoutes);
+app.use("/api/categories/", categoryRoutes);
+app.use("/api/subcategories/", subCategoryRoutes);
+app.use("/api/products/", productRoutes);
 app.use("/api/admin/", adminRoutes);
 app.use("/api/gallery/", galleryRoutes);
 // app.use("/api/customer/", customerRoutes);
