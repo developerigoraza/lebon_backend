@@ -187,13 +187,11 @@ const editProduct = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const updateData = { ...req.body };
 
-    // If images are provided, remove old ones and update
     if (req.files && req.files.length > 0) {
       const product = await Product.findById(id);
       if (!product)
         return res.status(404).json({ message: "Product not found" });
 
-      // Delete old images from the file system
       product.images.forEach((image) => {
         try {
           fs.unlinkSync(`uploads/${image}`);
@@ -202,7 +200,6 @@ const editProduct = asyncHandler(async (req, res) => {
         }
       });
 
-      // Update images field
       updateData.images = req.files.map((file) => file.filename);
     }
 
@@ -224,7 +221,6 @@ const editProduct = asyncHandler(async (req, res) => {
   }
 });
 
-// Delete a product
 const deleteProduct = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
