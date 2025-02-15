@@ -1,6 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const Product = require("../model/productModel");
-const Category = require("../model/categoryModel"); 
+const Category = require("../model/categoryModel");
 const SubCategory = require("../model/subCategoryModel");
 const fs = require("fs");
 const upload = require("../middleware/multerConfig");
@@ -68,31 +68,73 @@ const addProduct = asyncHandler(async (req, res) => {
 //   }
 // };
 
-
-
 // ==============
+
+// const getProducts = async (req, res) => {
+//   try {
+//     let filter = {};
+
+//     // Check if a category filter is provided
+//     if (req.query.category) {
+//       const categoryName = req.query.category;
+
+//       const category = await Category.findOne({ name: categoryName });
+
+//       if (!category) {
+//         return res.status(404).json({ message: "Category not found" });
+//       }
+
+//       filter.category = category._id;
+//     }
+
+//     const products = await Product.find(filter).populate(
+//       "category subCategory"
+//     );
+
+//     const productsWithImageURLs = products.map((product) => ({
+//       ...product.toObject(),
+//       images: product.images.map(
+//         (image) => `${req.protocol}://${req.get("host")}/uploads/${image}`
+//       ),
+//     }));
+
+//     res.status(200).json(productsWithImageURLs);
+//   } catch (err) {
+//     console.error("Error fetching products:", err);
+//     res.status(500).json({ message: "Server error" });
+//   }
+// };
+
 
 const getProducts = async (req, res) => {
   try {
     let filter = {};
 
-    // Check if a category filter is provided
+    
     if (req.query.category) {
       const categoryName = req.query.category;
-      
       const category = await Category.findOne({ name: categoryName });
 
       if (!category) {
         return res.status(404).json({ message: "Category not found" });
       }
 
-      filter.category = category._id; 
+      filter.category = category._id;
     }
 
     
-    const products = await Product.find(filter).populate("category subCategory");
+    const page = parseInt(req.query.page) || 1; 
+    const limit = parseInt(req.query.limit) || 10; 
+    const skip = (page - 1) * limit;
 
-   
+  
+    const totalProducts = await Product.countDocuments(filter);
+
+    const products = await Product.find(filter)
+      .populate("category subCategory")
+      .skip(skip)
+      .limit(limit);
+
     const productsWithImageURLs = products.map((product) => ({
       ...product.toObject(),
       images: product.images.map(
@@ -100,7 +142,12 @@ const getProducts = async (req, res) => {
       ),
     }));
 
-    res.status(200).json(productsWithImageURLs);
+    res.status(200).json({
+      totalProducts,
+      totalPages: Math.ceil(totalProducts / limit),
+      currentPage: page,
+      products: productsWithImageURLs,
+    });
   } catch (err) {
     console.error("Error fetching products:", err);
     res.status(500).json({ message: "Server error" });
@@ -108,10 +155,8 @@ const getProducts = async (req, res) => {
 };
 
 
+
 // ==============
-
-
-
 
 // Get product by ID
 const getProductById = asyncHandler(async (req, res) => {
@@ -136,43 +181,45 @@ const getProductById = asyncHandler(async (req, res) => {
   }
 });
 
-// Edit a product
+//edit product
 const editProduct = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      name,
-      description,
-      price,
-      isVeg,
-      isDeliverable,
-      category,
-      subCategory,
-    } = req.body;
+    const updateData = { ...req.body };
 
-    const product = await Product.findById(id);
-    if (!product) return res.status(404).json({ message: "Product not found" });
-
-    // Delete old images if new ones are uploaded
+    // If images are provided, remove old ones and update
     if (req.files && req.files.length > 0) {
-      product.images.forEach((image) => fs.unlinkSync(`uploads/${image}`));
-      product.images = req.files.map((file) => file.filename);
+      const product = await Product.findById(id);
+      if (!product)
+        return res.status(404).json({ message: "Product not found" });
+
+      // Delete old images from the file system
+      product.images.forEach((image) => {
+        try {
+          fs.unlinkSync(`uploads/${image}`);
+        } catch (err) {
+          console.error(`Failed to delete image: ${image}`, err);
+        }
+      });
+
+      // Update images field
+      updateData.images = req.files.map((file) => file.filename);
     }
 
-    // Update product fields
-    product.name = name || product.name;
-    product.description = description || product.description;
-    product.price = price || product.price;
-    product.isVeg = isVeg || product.isVeg;
-    product.isDeliverable = isDeliverable || product.isDeliverable;
-    product.category = category || product.category;
-    product.subCategory = subCategory || product.subCategory;
+    const updatedProduct = await Product.findByIdAndUpdate(id, updateData, {
+      new: true, 
+      runValidators: true, 
+    });
 
-    const updatedProduct = await product.save();
-    res
-      .status(200)
-      .json({ message: "Product updated successfully", updatedProduct });
+    if (!updatedProduct)
+      return res.status(404).json({ message: "Product not found" });
+
+    res.status(200).json({
+      message: "Product updated successfully",
+      updatedProduct,
+    });
   } catch (err) {
+    console.error("Error updating product:", err);
     res.status(500).json({ message: err.message });
   }
 });

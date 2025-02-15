@@ -53,6 +53,60 @@ router.get(
   })
 );
 
+// Edit a subcategory
+router.put(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { name, categoryId } = req.body;
+
+    // Input validation
+    if (!name && !categoryId) {
+      return res
+        .status(400)
+        .json({
+          message: "At least one field (name or categoryId) is required",
+        });
+    }
+
+    const subCategory = await SubCategory.findById(id);
+    if (!subCategory) {
+      return res.status(404).json({ message: "Subcategory not found" });
+    }
+
+    if (categoryId) {
+      const newCategory = await Category.findById(categoryId);
+      if (!newCategory) {
+        return res.status(404).json({ message: "New category not found" });
+      }
+
+      const oldCategory = await Category.findById(subCategory.category);
+      if (oldCategory) {
+        oldCategory.subCategories = oldCategory.subCategories.filter(
+          (subCatId) => subCatId.toString() !== id
+        );
+        await oldCategory.save();
+      }
+
+      newCategory.subCategories.push(subCategory._id);
+      await newCategory.save();
+
+      subCategory.category = categoryId;
+    }
+
+    if (name) {
+      subCategory.name = name;
+    }
+
+    await subCategory.save();
+
+    res.status(200).json({
+      message: "Subcategory updated successfully",
+      subCategory,
+    });
+  })
+);
+
 // Delete a subcategory
 router.delete(
   "/:id",
