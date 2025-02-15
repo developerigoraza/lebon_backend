@@ -107,52 +107,52 @@ const addProduct = asyncHandler(async (req, res) => {
 
 
 const getProducts = async (req, res) => {
-  try {
-    let filter = {};
+    try {
+      let filter = {};
 
-    
-    if (req.query.category) {
-      const categoryName = req.query.category;
-      const category = await Category.findOne({ name: categoryName });
+      
+      if (req.query.category) {
+        const categoryName = req.query.category;
+        const category = await Category.findOne({ name: categoryName });
 
-      if (!category) {
-        return res.status(404).json({ message: "Category not found" });
+        if (!category) {
+          return res.status(404).json({ message: "Category not found" });
+        }
+
+        filter.category = category._id;
       }
 
-      filter.category = category._id;
-    }
+      
+      const page = parseInt(req.query.page) || 1; 
+      const limit = parseInt(req.query.limit) || 10; 
+      const skip = (page - 1) * limit;
 
     
-    const page = parseInt(req.query.page) || 1; 
-    const limit = parseInt(req.query.limit) || 10; 
-    const skip = (page - 1) * limit;
+      const totalProducts = await Product.countDocuments(filter);
 
-  
-    const totalProducts = await Product.countDocuments(filter);
+      const products = await Product.find(filter)
+        .populate("category subCategory")
+        .skip(skip)
+        .limit(limit);
 
-    const products = await Product.find(filter)
-      .populate("category subCategory")
-      .skip(skip)
-      .limit(limit);
+      const productsWithImageURLs = products.map((product) => ({
+        ...product.toObject(),
+        images: product.images.map(
+          (image) => `${req.protocol}://${req.get("host")}/uploads/${image}`
+        ),
+      }));
 
-    const productsWithImageURLs = products.map((product) => ({
-      ...product.toObject(),
-      images: product.images.map(
-        (image) => `${req.protocol}://${req.get("host")}/uploads/${image}`
-      ),
-    }));
-
-    res.status(200).json({
-      totalProducts,
-      totalPages: Math.ceil(totalProducts / limit),
-      currentPage: page,
-      products: productsWithImageURLs,
-    });
-  } catch (err) {
-    console.error("Error fetching products:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
+      res.status(200).json({
+        totalProducts,
+        totalPages: Math.ceil(totalProducts / limit),
+        currentPage: page,
+        products: productsWithImageURLs,
+      });
+    } catch (err) {
+      console.error("Error fetching products:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  };
 
 
 
@@ -186,7 +186,7 @@ const editProduct = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = { ...req.body };
-
+ 
     if (req.files && req.files.length > 0) {
       const product = await Product.findById(id);
       if (!product)
