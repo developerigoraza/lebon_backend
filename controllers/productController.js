@@ -52,111 +52,62 @@ const addProduct = asyncHandler(async (req, res) => {
   }
 });
 
-// Get all products
-// const getProducts = async (req, res) => {
-//   try {
-//     const products = await Product.find().populate("category subCategory");
-//     const productsWithImageURLs = products.map((product) => ({
-//       ...product.toObject(),
-//       images: product.images.map(
-//         (image) => `${req.protocol}://${req.get("host")}/uploads/${image}`
-//       ),
-//     }));
-//     res.status(200).json(productsWithImageURLs);
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
-// ==============
-
-// const getProducts = async (req, res) => {
-//   try {
-//     let filter = {};
-
-//     // Check if a category filter is provided
-//     if (req.query.category) {
-//       const categoryName = req.query.category;
-
-//       const category = await Category.findOne({ name: categoryName });
-
-//       if (!category) {
-//         return res.status(404).json({ message: "Category not found" });
-//       }
-
-//       filter.category = category._id;
-//     }
-
-//     const products = await Product.find(filter).populate(
-//       "category subCategory"
-//     );
-
-//     const productsWithImageURLs = products.map((product) => ({
-//       ...product.toObject(),
-//       images: product.images.map(
-//         (image) => `${req.protocol}://${req.get("host")}/uploads/${image}`
-//       ),
-//     }));
-
-//     res.status(200).json(productsWithImageURLs);
-//   } catch (err) {
-//     console.error("Error fetching products:", err);
-//     res.status(500).json({ message: "Server error" });
-//   }
-// };
-
-
 const getProducts = async (req, res) => {
-    try {
-      let filter = {};
+  try {
+    let filter = {};
 
-      
-      if (req.query.category) {
-        const categoryName = req.query.category;
-        const category = await Category.findOne({ name: categoryName });
+    if (req.query.category) {
+      const categoryName = req.query.category;
+      const category = await Category.findOne({ name: categoryName });
 
-        if (!category) {
-          return res.status(404).json({ message: "Category not found" });
-        }
-
-        filter.category = category._id;
+      if (!category) {
+        return res.status(404).json({ message: "Category not found" });
       }
 
-      
-      const page = parseInt(req.query.page) || 1; 
-      const limit = parseInt(req.query.limit) || 10; 
-      const skip = (page - 1) * limit;
-
-    
-      const totalProducts = await Product.countDocuments(filter);
-
-      const products = await Product.find(filter)
-        .populate("category subCategory")
-        .skip(skip)
-        .limit(limit);
-
-      const productsWithImageURLs = products.map((product) => ({
-        ...product.toObject(),
-        images: product.images.map(
-          (image) => `${req.protocol}://${req.get("host")}/uploads/${image}`
-        ),
-      }));
-
-      res.status(200).json({
-        totalProducts,
-        totalPages: Math.ceil(totalProducts / limit),
-        currentPage: page,
-        products: productsWithImageURLs,
-      });
-    } catch (err) {
-      console.error("Error fetching products:", err);
-      res.status(500).json({ message: "Server error" });
+      filter.category = category._id;
     }
-  };
 
+    if (req.query.subCategory) {
+      const subCategoryName = req.query.subCategory;
+      const subCategory = await SubCategory.findOne({ name: subCategoryName });
 
+      if (!subCategory) {
+        return res.status(404).json({ message: "SubCategory not found" });
+      }
 
-// ==============
+      filter.subCategory = subCategory._id;
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const totalProducts = await Product.countDocuments(filter);
+
+    const products = await Product.find(filter)
+      .populate("category subCategory")
+      .skip(skip)
+      .limit(limit);
+
+    const productsWithImageURLs = products.map((product) => ({
+      ...product.toObject(),
+      images: product.images.map(
+        (image) => `${req.protocol}://${req.get("host")}/uploads/${image}`
+      ),
+    }));
+
+    res.status(200).json({
+      totalProducts,
+      totalPages: Math.ceil(totalProducts / limit),
+      currentPage: page,
+      products: productsWithImageURLs,
+    });
+  } catch (err) {
+    console.error("Error fetching products:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 
 // Get product by ID
 const getProductById = asyncHandler(async (req, res) => {
@@ -186,7 +137,7 @@ const editProduct = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = { ...req.body };
- 
+
     if (req.files && req.files.length > 0) {
       const product = await Product.findById(id);
       if (!product)
@@ -204,8 +155,8 @@ const editProduct = asyncHandler(async (req, res) => {
     }
 
     const updatedProduct = await Product.findByIdAndUpdate(id, updateData, {
-      new: true, 
-      runValidators: true, 
+      new: true,
+      runValidators: true,
     });
 
     if (!updatedProduct)
